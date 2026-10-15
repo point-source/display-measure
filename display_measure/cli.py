@@ -82,8 +82,8 @@ class InstrumentChoice(StrEnum):
     """What a session measures with.
 
     The doubles run anywhere; the hardware modes discover the
-    Colorimetry Research instruments over serial. A hybrid session adds
-    the colorimeter, disciplined in session against the
+    spectroradiometer `--spectro` names over serial. A hybrid session
+    adds the CR colorimeter, disciplined in session against the
     spectroradiometer, and reads the dark patches with it.
     """
 
@@ -91,6 +91,17 @@ class InstrumentChoice(StrEnum):
     DOUBLES_HYBRID = "doubles-hybrid"
     SPECTRO = "spectro"
     HYBRID = "hybrid"
+
+
+class SpectroChoice(StrEnum):
+    """Which spectroradiometer a hardware session discovers.
+
+    Restated rather than imported, like the wire encodings: the session
+    module pulls numpy. Checked against `display_measure.session.SPECTROS`.
+    """
+
+    CR300 = "cr300"
+    PR655 = "pr655"
 
 
 class WireChoice(StrEnum):
@@ -228,8 +239,19 @@ def characterize(
         "--instrument",
         help=(
             "What measures: doubles (hardware-free), doubles-hybrid (the "
-            "doubles' disciplined-colorimeter pair), spectro (CR-300), or "
-            "hybrid (CR-300 disciplining a CR-120)."
+            "doubles' disciplined-colorimeter pair), spectro (the --spectro "
+            "spectroradiometer alone), or hybrid (it disciplining a CR-120)."
+        ),
+    ),
+    spectro: SpectroChoice = typer.Option(
+        SpectroChoice.CR300,
+        "--spectro",
+        help=(
+            "The spectroradiometer the hardware modes discover: cr300 "
+            "(Colorimetry Research) or pr655 (Photo Research PR-655/670, "
+            "adaptive exposure, specified floor near 0.7 cd/m² — pair it "
+            "with --instrument hybrid where patches go darker). Ignored by "
+            "the doubles."
         ),
     ),
     threshold: float = typer.Option(
@@ -390,6 +412,9 @@ def characterize(
     assert {w.value for w in WireChoice} == set(WIRE_ENCODINGS), (
         "the CLI's restated wire encodings drifted from display_measure.wire"
     )
+    assert {s.value for s in SpectroChoice} == set(session.SPECTROS), (
+        "the CLI's restated spectroradiometers drifted from display_measure.session"
+    )
     encoding = WIRE_ENCODINGS[wire.value]
 
     if timestamp is None:
@@ -439,6 +464,7 @@ def characterize(
                     processor_host=processor,
                     encoding=encoding,
                     declared=declared,
+                    spectro=spectro.value,
                     decklink_index=decklink,
                     cancelled=cancelled,
                 )
